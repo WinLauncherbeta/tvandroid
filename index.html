@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TV Desktop</title>
+<style>
+  :root { --s: 1; --w: 60; --accent: #4cc2ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; background: #000; color: #fff; overflow: hidden;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif; }
+
+  /* ---------- Barra de tarefas (vidro) ---------- */
+  #taskbar {
+    position: fixed; left: 50%; bottom: calc(14px * var(--s)); transform: translateX(-50%);
+    width: calc(var(--w) * 1%); min-width: calc(220px * var(--s));
+    height: calc(64px * var(--s)); padding: 0 calc(14px * var(--s));
+    display: flex; align-items: center; gap: calc(10px * var(--s));
+    background: rgba(255,255,255,.12);
+    backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255,255,255,.22); border-radius: calc(18px * var(--s));
+    box-shadow: 0 8px 30px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.25);
+    z-index: 50;
+  }
+  .tb-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: calc(10px * var(--s)); }
+  #clock { font-size: calc(15px * var(--s)); text-align: right; line-height: 1.2; white-space: nowrap; opacity: .92; }
+
+  .f { outline: none; cursor: pointer; transition: transform .12s, background .12s, box-shadow .12s; }
+  .tb-btn {
+    width: calc(46px * var(--s)); height: calc(46px * var(--s)); border-radius: calc(12px * var(--s));
+    display: grid; place-items: center; background: rgba(255,255,255,.06);
+  }
+  .tb-btn svg { width: calc(26px * var(--s)); height: calc(26px * var(--s)); }
+  .f:focus { box-shadow: 0 0 0 3px var(--accent); background: rgba(255,255,255,.25); transform: scale(1.1); }
+
+  /* ---------- Menu Iniciar ---------- */
+  #start {
+    position: fixed; left: 50%; bottom: calc(92px * var(--s)); transform: translateX(-50%);
+    width: min(760px, 92vw); height: min(520px, 70vh); padding: 28px;
+    background: rgba(30,30,40,.72);
+    backdrop-filter: blur(30px) saturate(160%); -webkit-backdrop-filter: blur(30px) saturate(160%);
+    border: 1px solid rgba(255,255,255,.2); border-radius: 22px;
+    box-shadow: 0 16px 50px rgba(0,0,0,.7);
+    display: none; flex-direction: column; z-index: 40;
+  }
+  #start.open { display: flex; }
+  #start h2 { font-size: 20px; font-weight: 600; margin-bottom: 18px; opacity: .9; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; flex: 1; align-content: start; }
+  .app { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 8px;
+    border-radius: 16px; background: rgba(255,255,255,.06); font-size: 16px; }
+  .app .ico { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-size: 30px; }
+  .start-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px;
+    padding-top: 14px; border-top: 1px solid rgba(255,255,255,.15); }
+  .start-foot .user { display: flex; align-items: center; gap: 12px; font-size: 16px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#4cc2ff,#8a5cff); }
+
+  /* ---------- Configurações ---------- */
+  #settings {
+    position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.55); z-index: 80;
+  }
+  #settings.open { display: grid; }
+  .panel {
+    width: min(760px, 94vw); padding: 32px; border-radius: 24px;
+    background: rgba(32,32,44,.85); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255,255,255,.2); box-shadow: 0 20px 60px rgba(0,0,0,.8);
+  }
+  .panel h1 { font-size: 26px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+  .panel .sub { opacity: .65; margin-bottom: 26px; font-size: 15px; }
+  .row { margin-bottom: 22px; padding: 16px 18px; border-radius: 16px; background: rgba(255,255,255,.06); }
+  .row .top { display: flex; justify-content: space-between; font-size: 18px; margin-bottom: 14px; }
+  .row .val { color: var(--accent); font-weight: 600; }
+  .track { height: 12px; border-radius: 6px; background: rgba(255,255,255,.2); position: relative; }
+  .fill { height: 100%; border-radius: 6px; background: var(--accent); }
+  .thumb { position: absolute; top: 50%; width: 26px; height: 26px; border-radius: 50%; background: #fff;
+    transform: translate(-50%, -50%); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .btns { display: flex; gap: 14px; justify-content: flex-end; }
+  .btn { padding: 12px 26px; border-radius: 12px; background: rgba(255,255,255,.12); font-size: 17px; }
+  .hint { margin-top: 18px; opacity: .5; font-size: 14px; text-align: center; }
+
+  #toast { position: fixed; top: 28px; left: 50%; transform: translateX(-50%); padding: 12px 22px;
+    background: rgba(255,255,255,.14); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,.25); border-radius: 12px; font-size: 18px; opacity: 0;
+    transition: opacity .25s; z-index: 100; pointer-events: none; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <h2>Aplicativos</h2>
+  <div class="grid" id="appgrid"></div>
+  <div class="start-foot">
+    <div class="user"><div class="avatar"></div>Usuário</div>
+    <div class="f tb-btn" tabindex="0" data-act="settings" title="Configurações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#gear"/></svg>
+    </div>
+  </div>
+</div>
+
+<div id="taskbar">
+  <div class="f tb-btn" tabindex="0" data-act="start" title="Iniciar">
+    <svg viewBox="0 0 24 24" fill="#4cc2ff"><rect x="2" y="2" width="9.5" height="9.5" rx="1.2"/><rect x="12.5" y="2" width="9.5" height="9.5" rx="1.2"/><rect x="2" y="12.5" width="9.5" height="9.5" rx="1.2"/><rect x="12.5" y="12.5" width="9.5" height="9.5" rx="1.2"/></svg>
+  </div>
+  <div class="tb-center">
+    <div class="f tb-btn" tabindex="0" data-act="settings" title="Configurações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#gear"/></svg>
+    </div>
+  </div>
+  <div id="clock"></div>
+</div>
+
+<div id="settings">
+  <div class="panel">
+    <h1>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#gear"/></svg>
+      Configurações
+    </h1>
+    <div class="sub">Personalização da barra de tarefas</div>
+
+    <div class="row">
+      <div class="top"><span>Largura da barra</span><span class="val" id="v-w"></span></div>
+      <div class="f track" tabindex="0" id="sl-w" data-min="30" data-max="100" data-step="5">
+        <div class="fill"></div><div class="thumb"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="top"><span>Escala (tamanho)</span><span class="val" id="v-s"></span></div>
+      <div class="f track" tabindex="0" id="sl-s" data-min="60" data-max="200" data-step="10">
+        <div class="fill"></div><div class="thumb"></div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <div class="f btn" tabindex="0" data-act="reset">Restaurar padrão</div>
+      <div class="f btn" tabindex="0" data-act="close">Fechar</div>
+    </div>
+    <div class="hint">◄ ► ajustam o valor • ▲ ▼ mudam de item • OK seleciona • Voltar fecha</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <g id="gear">
+      <circle cx="12" cy="12" r="3.2"/>
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+    </g>
+  </defs>
+</svg>
+
+<script>
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  /* ---------- Estado persistente ---------- */
+  var DEFAULTS = { w: 60, s: 100 };
+  var cfg = Object.assign({}, DEFAULTS);
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem('tvdesk') || '{}')); } catch (e) {}
+
+  function apply() {
+    document.documentElement.style.setProperty('--w', cfg.w);
+    document.documentElement.style.setProperty('--s', cfg.s / 100);
+    $('#v-w').textContent = cfg.w + '%';
+    $('#v-s').textContent = cfg.s + '%';
+    paintSlider($('#sl-w'), cfg.w);
+    paintSlider($('#sl-s'), cfg.s);
+    try { localStorage.setItem('tvdesk', JSON.stringify(cfg)); } catch (e) {}
+  }
+  function paintSlider(el, v) {
+    var min = +el.dataset.min, max = +el.dataset.max;
+    var pct = ((v - min) / (max - min)) * 100;
+    $('.fill', el).style.width = pct + '%';
+    $('.thumb', el).style.left = pct + '%';
+  }
+
+  /* ---------- Apps (exemplos) ---------- */
+  var APPS = [
+    ['🌐', 'Navegador', '#1f6feb'], ['📁', 'Arquivos', '#d29922'], ['🎬', 'Vídeos', '#da3633'],
+    ['🎵', 'Música', '#8957e5'], ['🖼️', 'Fotos', '#2ea043'], ['🎮', 'Jogos', '#db61a2'],
+    ['🛒', 'Loja', '#0969da'], ['⚙️', 'Configurações', '#6e7681']
+  ];
+  var grid = $('#appgrid');
+  APPS.forEach(function (a) {
+    var d = document.createElement('div');
+    d.className = 'f app'; d.tabIndex = 0; d.dataset.app = a[1];
+    d.innerHTML = '<div class="ico" style="background:' + a[2] + '">' + a[0] + '</div><span>' + a[1] + '</span>';
+    grid.appendChild(d);
+  });
+
+  /* ---------- Relógio ---------- */
+  function tick() {
+    var d = new Date();
+    $('#clock').innerHTML =
+      d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '<br>' +
+      d.toLocaleDateString('pt-BR');
+  }
+  tick(); setInterval(tick, 15000);
+
+  /* ---------- Toast ---------- */
+  var tt;
+  function toast(msg) {
+    var t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+
+  /* ---------- Abrir / fechar camadas ---------- */
+  var start = $('#start'), settings = $('#settings');
+  function openStart() { start.classList.add('open'); focusFirst(start); }
+  function closeStart() { start.classList.remove('open'); $('[data-act=start]').focus(); }
+  function openSettings() {
+    start.classList.remove('open'); settings.classList.add('open'); $('#sl-w').focus();
+  }
+  function closeSettings() { settings.classList.remove('open'); $('[data-act=settings]', $('#taskbar')).focus(); }
+  function focusFirst(root) { var f = $('.f', root); if (f) f.focus(); }
+
+  function activate(el) {
+    var act = el.dataset.act;
+    if (act === 'start') { start.classList.contains('open') ? closeStart() : openStart(); }
+    else if (act === 'settings') openSettings();
+    else if (act === 'close') closeSettings();
+    else if (act === 'reset') { cfg = Object.assign({}, DEFAULTS); apply(); toast('Configurações restauradas'); }
+    else if (el.dataset.app) {
+      if (el.dataset.app === 'Configurações') openSettings();
+      else toast(el.dataset.app + ' — em breve');
+    }
+  }
+
+  function goBack() {
+    if (settings.classList.contains('open')) { closeSettings(); return true; }
+    if (start.classList.contains('open')) { closeStart(); return true; }
+    return false;
+  }
+
+  /* ---------- Navegação espacial (D-pad) ---------- */
+  function scope() {
+    if (settings.classList.contains('open')) return settings;
+    if (start.classList.contains('open')) return document.body; // menu + barra
+    return $('#taskbar');
+  }
+  function candidates() {
+    var root = scope();
+    return $$('.f', root).filter(function (e) {
+      var r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && (root !== document.body || !settings.contains(e));
+    });
+  }
+  function center(r) { return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+
+  function move(dir) {
+    var cur = document.activeElement;
+    var list = candidates();
+    if (!cur || !cur.classList.contains('f') || list.indexOf(cur) < 0) { if (list[0]) list[0].focus(); return; }
+    var c = center(cur.getBoundingClientRect()), best = null, bestScore = Infinity;
+    list.forEach(function (el) {
+      if (el === cur) return;
+      var p = center(el.getBoundingClientRect()), dx = p.x - c.x, dy = p.y - c.y, ok, main, cross;
+      if (dir === 'left')  { ok = dx < -4; main = -dx; cross = Math.abs(dy); }
+      if (dir === 'right') { ok = dx > 4;  main = dx;  cross = Math.abs(dy); }
+      if (dir === 'up')    { ok = dy < -4; main = -dy; cross = Math.abs(dx); }
+      if (dir === 'down')  { ok = dy > 4;  main = dy;  cross = Math.abs(dx); }
+      if (!ok) return;
+      var score = main + cross * 2.5;
+      if (score < bestScore) { bestScore = score; best = el; }
+    });
+    if (best) best.focus();
+  }
+
+  function adjust(el, dir) {
+    var min = +el.dataset.min, max = +el.dataset.max, step = +el.dataset.step;
+    var key = el.id === 'sl-w' ? 'w' : 's';
+    cfg[key] = Math.max(min, Math.min(max, cfg[key] + dir * step));
+    apply();
+  }
+
+  /* ---------- Teclas do controle ---------- */
+  document.addEventListener('keydown', function (e) {
+    var k = e.key, code = e.keyCode, cur = document.activeElement;
+    var isSlider = cur && cur.classList.contains('track');
+    var dir = null;
+    if (k === 'ArrowLeft' || code === 21) dir = 'left';
+    else if (k === 'ArrowRight' || code === 22) dir = 'right';
+    else if (k === 'ArrowUp' || code === 19) dir = 'up';
+    else if (k === 'ArrowDown' || code === 20) dir = 'down';
+
+    if (dir) {
+      e.preventDefault();
+      if (isSlider && (dir === 'left' || dir === 'right')) adjust(cur, dir === 'left' ? -1 : 1);
+      else move(dir);
+      return;
+    }
+    if (k === 'Enter' || k === ' ' || code === 23 || code === 66) {
+      if (cur && cur.classList.contains('f') && !isSlider) { e.preventDefault(); activate(cur); }
+      return;
+    }
+    if (k === 'Escape' || k === 'Backspace' || k === 'GoBack' || code === 4) {
+      if (goBack()) e.preventDefault();
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('.f');
+    if (el && !el.classList.contains('track')) { el.focus(); activate(el); }
+  });
+
+  /* Botão Voltar nativo (Capacitor) */
+  document.addEventListener('deviceready', function () {});
+  var cap = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (cap && cap.addListener) {
+    cap.addListener('backButton', function () { goBack(); });
+  }
+
+  apply();
+  $('[data-act=start]').focus();
+})();
+</script>
+</body>
+</html>
