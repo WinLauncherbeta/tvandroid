@@ -1,15 +1,36 @@
+
 name: Build APK Android TV
 
 on:
   push:
     branches: [ main, master ]
+    paths:
+      - 'app.zip'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extrair ZIP do aplicativo
+        run: |
+          mkdir -p /tmp/app-project
+          unzip -q app.zip -d /tmp/app-project
+
+          PROJECT_DIR=$(dirname "$(find /tmp/app-project -name package.json -print -quit)")
+
+          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "." ]; then
+            echo "Erro: package.json não encontrado no ZIP"
+            exit 1
+          fi
+
+          rsync -a \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            "$PROJECT_DIR"/ ./
 
       - uses: actions/setup-node@v4
         with:
@@ -23,7 +44,7 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
-      - name: Copiar index.html para www
+      - name: Preparar aplicativo
         run: |
           mkdir -p www
           cp index.html www/
@@ -36,7 +57,6 @@ jobs:
           M=android/app/src/main/AndroidManifest.xml
           sed -i 's#<category android:name="android.intent.category.LAUNCHER" />#&\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />#' $M
           sed -i 's#<application#<uses-feature android:name="android.hardware.touchscreen" android:required="false" />\n    <uses-feature android:name="android.software.leanback" android:required="false" />\n    <application android:banner="@mipmap/ic_launcher"#' $M
-          cat $M
 
       - name: Sincronizar
         run: npx cap sync android
@@ -52,3 +72,4 @@ jobs:
         with:
           name: tv-desktop-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
